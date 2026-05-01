@@ -2,24 +2,29 @@ import { Injectable } from '@angular/core';
 import { ApplicationInsights } from '@microsoft/applicationinsights-web';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class MonitoringService {
-  private appInsights: ApplicationInsights;
+  private appInsights: ApplicationInsights | null = null;
 
   constructor(private router: Router) {
-    // 1. Inicialización del SDK según documentación oficial
-    this.appInsights = new ApplicationInsights({
-      config: {
-        connectionString: 'InstrumentationKey=53458414-c28b-407d-8900-45010a81215e;IngestionEndpoint=https://chilecentral-0.in.applicationinsights.azure.com/;LiveEndpoint=https://chilecentral.livediagnostics.monitor.azure.com/;ApplicationId=a033a65b-e806-41e2-a590-27157cbe379b',
-        enableAutoRouteTracking: true,
-      }
-    });
+    // 1. Inicialización del SDK según documentación oficial usando la variable de entorno
+    if (environment.appInsightsConnectionString) {
+      this.appInsights = new ApplicationInsights({
+        config: {
+          connectionString: environment.appInsightsConnectionString,
+          enableAutoRouteTracking: true,
+        }
+      });
 
-    this.appInsights.loadAppInsights();
-    this.createRouterSubscription();
+      this.appInsights.loadAppInsights();
+      this.createRouterSubscription();
+    } else {
+      console.warn('Application Insights is disabled (No connection string provided).');
+    }
   }
 
   // 2. Rastreo automático de navegación (Page Views)
@@ -27,16 +32,16 @@ export class MonitoringService {
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
     ).subscribe((event: NavigationEnd) => {
-      this.appInsights.trackPageView({ name: event.urlAfterRedirects });
+      this.appInsights?.trackPageView({ name: event.urlAfterRedirects });
     });
   }
 
   // 3. Métodos manuales para eventos personalizados
   trackException(exception: Error) {
-    this.appInsights.trackException({ exception });
+    this.appInsights?.trackException({ exception });
   }
 
   trackEvent(name: string, properties?: { [key: string]: any }) {
-    this.appInsights.trackEvent({ name, properties });
+    this.appInsights?.trackEvent({ name, properties });
   }
-}
+}
